@@ -190,8 +190,10 @@ struct execvp_param *_my_execvp(struct execvp_param *param)
 
 	if (param->read_from_execvp) {
 		while (waitpid(param->read_from_execvp->pid, &status, 0) != param->read_from_execvp->pid);
-		param->read_from_execvp->retval = WEXITSTATUS(status);
-		if (param->pipefail && param->retval == 0 && param->read_from_execvp->retval != 0) {
+		if (param->read_from_execvp->retval < 0 || WEXITSTATUS(status) != 0) {
+			param->read_from_execvp->retval = WEXITSTATUS(status);
+		}
+		if (param->pipefail && param->retval <= 0 && param->read_from_execvp->retval != 0) {
 			param->retval = param->read_from_execvp->retval;
 		}
 	}
@@ -202,6 +204,9 @@ struct execvp_param *_my_execvp(struct execvp_param *param)
 	while (waitpid(param->pid, &status, 0) != param->pid);
 
 	param->retval = WEXITSTATUS(status);
+	if (param->pipefail && param->retval == 0 && param->read_from_execvp && param->read_from_execvp->retval != 0) {
+		param->retval = param->read_from_execvp->retval;
+	}
 
 	return param;
 }
